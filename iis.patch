@@ -194,3 +194,17 @@ diff -urN eccube-2.11.0-orig/html/.user.ini eccube-2.11.0-IIS-patched/html/.user
                      document.write("<p><a href='?' target='_top'>戻る</a></p>");
                      document.close();
                  }
+--- ec-cube/data/class/util/GC_Utils.php
++++ ec-cube/data/class/util/GC_Utils.php
+@@ -189,6 +189,10 @@
+             $path = GC_Utils_Ex::isAdminFunction() ? ADMIN_LOG_REALFILE : LOG_REALFILE;
+         }
+ 
++        if (isset($_SERVER['COMPUTERNAME'])) {
++            $path = str_replace('.log', '.' . $_SERVER['COMPUTERNAME'] . '.log', $path);
++        }
++
+         $msg = "$today [{$_SERVER['SCRIPT_NAME']}] $msg from {$_SERVER['REMOTE_ADDR']}\n";
+         if ($verbose) {
+             if (GC_Utils_Ex::isFrontFunction()) {
+
