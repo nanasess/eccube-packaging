@@ -208,3 +208,129 @@ diff -urN eccube-2.11.0-orig/html/.user.ini eccube-2.11.0-IIS-patched/html/.user
          if ($verbose) {
              if (GC_Utils_Ex::isFrontFunction()) {
 
+--- ec-cube/data/class/SC_AdminView.php
++++ ec-cube/data/class/SC_AdminView.php
+@@ -32,8 +32,8 @@
+     {
+         parent::init();
+ 
+-        $this->_smarty->template_dir = TEMPLATE_ADMIN_REALDIR;
+-        $this->_smarty->compile_dir = COMPILE_ADMIN_REALDIR;
++        $this->_smarty->template_dir = realpath(TEMPLATE_ADMIN_REALDIR);
++        $this->_smarty->compile_dir = realpath(COMPILE_ADMIN_REALDIR);
+         $this->assign('TPL_URLPATH_PC', ROOT_URLPATH . USER_DIR . USER_PACKAGE_DIR . TEMPLATE_NAME . '/');
+         $this->assign('TPL_URLPATH_DEFAULT', ROOT_URLPATH . USER_DIR . USER_PACKAGE_DIR . DEFAULT_TEMPLATE_NAME . '/');
+         $this->assign('TPL_URLPATH', ROOT_URLPATH . USER_DIR . USER_PACKAGE_DIR . 'admin/');
+	Modified   /var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//KV8stt_SC_InstallView.php
+diff --git a/data/class/SC_InstallView.php b//var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//KV8stt_SC_InstallView.php
+index c02ee4fee48ea674e4c20d7edf8916dbcf7e645e 100644
+--- ec-cube/data/class/SC_InstallView.php
++++ ec-cube/data/class/SC_InstallView.php
+@@ -27,7 +27,7 @@
+     {
+         parent::__construct();
+ 
+-        $this->_smarty->template_dir = $template_dir;
+-        $this->_smarty->compile_dir = $compile_dir;
++        $this->_smarty->template_dir = realpath($template_dir);
++        $this->_smarty->compile_dir = realpath($compile_dir);
+     }
+ }
+	Modified   /var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//l6alcC_SC_MobileView.php
+diff --git a/data/class/SC_MobileView.php b//var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//l6alcC_SC_MobileView.php
+index 8e69e52fd0ef3909c68278636c34953b58cf0d00 100644
+--- ec-cube/data/class/SC_MobileView.php
++++ ec-cube/data/class/SC_MobileView.php
+@@ -32,8 +32,8 @@
+     {
+         parent::init();
+ 
+-        $this->_smarty->template_dir = MOBILE_TEMPLATE_REALDIR;
+-        $this->_smarty->compile_dir = MOBILE_COMPILE_REALDIR;
++        $this->_smarty->template_dir = realpath(MOBILE_TEMPLATE_REALDIR);
++        $this->_smarty->compile_dir = realpath(MOBILE_COMPILE_REALDIR);
+         $this->assignTemplatePath(DEVICE_TYPE_MOBILE);
+     }
+ }
+	Modified   /var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//UUS6tj_SC_SiteView.php
+diff --git a/data/class/SC_SiteView.php b//var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//UUS6tj_SC_SiteView.php
+index e732a9ec1fd68d24e2ed899162af0ce1cb72c183 100644
+--- ec-cube/data/class/SC_SiteView.php
++++ ec-cube/data/class/SC_SiteView.php
+@@ -36,8 +36,8 @@
+     {
+         parent::init();
+ 
+-        $this->_smarty->template_dir = TEMPLATE_REALDIR;
+-        $this->_smarty->compile_dir = COMPILE_REALDIR;
++        $this->_smarty->template_dir = realpath(TEMPLATE_REALDIR);
++        $this->_smarty->compile_dir = realpath(COMPILE_REALDIR);
+ 
+         $this->assignTemplatePath(DEVICE_TYPE_PC);
+     }
+	Modified   /var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//IKWGLp_SC_SmartphoneView.php
+diff --git a/data/class/SC_SmartphoneView.php b//var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//IKWGLp_SC_SmartphoneView.php
+index 538d4ff87186c2b5dd5dea0f939ecbe195027241 100644
+--- ec-cube/data/class/SC_SmartphoneView.php
++++ ec-cube/data/class/SC_SmartphoneView.php
+@@ -32,8 +32,8 @@
+     {
+         parent::init();
+ 
+-        $this->_smarty->template_dir = SMARTPHONE_TEMPLATE_REALDIR;
+-        $this->_smarty->compile_dir = SMARTPHONE_COMPILE_REALDIR;
++        $this->_smarty->template_dir = realpath(SMARTPHONE_TEMPLATE_REALDIR);
++        $this->_smarty->compile_dir = realpath(SMARTPHONE_COMPILE_REALDIR);
+         $this->assignTemplatePath(DEVICE_TYPE_SMARTPHONE);
+     }
+ }
+diff --git a/html/admin/require.php b//var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//8MD5e1_require.php
+index 395f93254af63889f303d6a4aef4096e93c8ca79 100644
+--- ec-cube/html/admin/require.php
++++ ec-cube/html/admin/require.php
+@@ -22,7 +22,10 @@
+  */
+ 
+ // rtrim は PHP バージョン依存対策
+-define('HTML_REALDIR', rtrim(realpath(rtrim(realpath(dirname(__FILE__)), '/\\') . '/../'), '/\\') . '/');
++$GLOBALS['_realdir'] = rtrim(realpath(rtrim(realpath(dirname(__FILE__)), '/\\') . '/../'), '/\\') . '/';
++$GLOBALS['_realdir'] = str_replace('\\', '/', $GLOBALS['_realdir']);
++$GLOBALS['_realdir'] = str_replace('//', '/', $GLOBALS['_realdir']);
++define('HTML_REALDIR', $GLOBALS['_realdir']);
+ define('ADMIN_FUNCTION', true);
+ 
+ require_once HTML_REALDIR . 'define.php';
+	Modified   /var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//83X5Au_index.php
+diff --git a/html/install/index.php b//var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//83X5Au_index.php
+index a39c2c53d9dd25ccd608523116403ec9735ccc78 100644
+--- ec-cube/html/install/index.php
++++ ec-cube/html/install/index.php
+@@ -23,6 +23,10 @@
+ // ▼require.php 相当
+ // rtrim は PHP バージョン依存対策
+ define('HTML_REALDIR', rtrim(realpath(rtrim(realpath(dirname(__FILE__)), '/\\') . '/../'), '/\\') . '/');
++$GLOBALS['_realdir'] = rtrim(realpath(rtrim(realpath(dirname(__FILE__)), '/\\') . '/../'), '/\\') . '/';
++$GLOBALS['_realdir'] = str_replace('\\', '/', $GLOBALS['_realdir']);
++$GLOBALS['_realdir'] = str_replace('//', '/', $GLOBALS['_realdir']);
++define('HTML_REALDIR', $GLOBALS['_realdir']);
+ 
+ require_once HTML_REALDIR . 'define.php';
+ define('INSTALL_FUNCTION', true);
+	Modified   /var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//H8vceJ_require.php
+diff --git a/html/require.php b//var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//H8vceJ_require.php
+index 72d99c69dca002c89ab01ad8a26ec085387388c5 100644
+--- ec-cube/html/require.php
++++ ec-cube/html/require.php
+@@ -22,7 +22,10 @@
+  */
+ 
+ // rtrim は PHP バージョン依存対策
+-define('HTML_REALDIR', rtrim(realpath(rtrim(realpath(dirname(__FILE__)), '/\\') . '/'), '/\\') . '/');
++$GLOBALS['_realdir'] = rtrim(realpath(rtrim(realpath(dirname(__FILE__)), '/\\') . '/'), '/\\') . '/';
++$GLOBALS['_realdir'] = str_replace('\\', '/', $GLOBALS['_realdir']);
++$GLOBALS['_realdir'] = str_replace('//', '/', $GLOBALS['_realdir']);
++define('HTML_REALDIR', $GLOBALS['_realdir']);
+ 
+ if (!defined('ADMIN_FUNCTION') || ADMIN_FUNCTION !== true) {
+     define('FRONT_FUNCTION', true);
+
