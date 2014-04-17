@@ -1,0 +1,135 @@
+diff -urN eccube-2.11.0-orig/data/config/webmatrix.php eccube-2.11.0-IIS-patched/data/config/webmatrix.php
+--- ec-cube/data/config/webmatrix.php	1970-01-01 09:00:00.000000000 +0900
++++ ec-cube/data/config/webmatrix.php	2011-03-24 19:34:45.000000000 +0900
+@@ -0,0 +1,4 @@
++<?php
++/* WebMatrix Connection String */
++/* mysql://PlaceHolderForUser:PlaceHolderForPassword@PlaceHolderForServer/PlaceHolderForDb;*/
++?>
+diff -urN eccube-2.11.0-orig/html/.user.ini eccube-2.11.0-IIS-patched/html/.user.ini
+--- ec-cube/html/.user.ini	1970-01-01 09:00:00.000000000 +0900
++++ ec-cube/html/.user.ini	2011-03-24 19:38:06.000000000 +0900
+@@ -0,0 +1,9 @@
++mbstring.language = Japanese
++mbstring.encoding_translation = off
++output_handler = NULL
++magic_quotes_gpc = off
++session.auto_start = 0
++mbstring.internal_encoding = UTF-8
++upload_max_filesize = 5M
++register_globals = off
++date.timezone = Asia/Tokyo
+--- ec-cube/data/class_extends/util_extends/SC_Utils_Ex.php
++++ ec-cube/data/class_extends/util_extends/SC_Utils_Ex.php
+@@ -34,4 +34,21 @@
+  */
+ class SC_Utils_Ex extends SC_Utils
+ {
++    function sfInitInstall() {
++        // インストール済みが定義されていない。
++        if (!defined('ECCUBE_INSTALL')) {
++            $phpself = $_SERVER['SCRIPT_NAME'];
++            if (strpos('/install/', $phpself) === false) {
++                $path = substr($phpself, 0, strpos($phpself, basename($phpself)));
++                $install_url = SC_Utils_Ex::searchInstallerPath($path);
++                header('Location: ' . $install_url);
++                exit;
++            }
++        }
++        $path = HTML_REALDIR . 'install/' . DIR_INDEX_FILE;
++        if (file_exists($path)) {
++            SC_Utils_Ex::sfErrorHeader('&gt;&gt; /install/' . DIR_INDEX_FILE . ' は、インストール完了後にファイルを削除してください。削除するには<a href="' . ROOT_URLPATH . 'deleteInstaller.php">こちら</a>をクリックしてください。');
++        }
++    }
++
+ }
+--- ec-cube/html/install/index.php
++++ ec-cube/html/install/index.php
+@@ -45,7 +45,6 @@
+ 
+ $objPage = new StdClass;
+ $objPage->arrDB_TYPE = array(
+-    'pgsql' => 'PostgreSQL',
+     'mysql' => 'MySQL',
+ );
+ $objPage->arrDB_PORT = array(
+@@ -718,10 +717,47 @@
+ // DBパラメーター情報の初期化
+ function lfInitDBParam($objDBParam)
+ {
++    // EC-CUBEデフォルト値設定
++    $default_server = '127.0.0.1';
++    $default_dbname = 'eccube_db';
++    $default_user   = 'eccube_db_user';
++    $default_pass   = '';
++
++    // WebMatrixの設定ファイルから接続情報を取得
++    $webpi_filename = HTML_REALDIR . HTML2DATA_DIR . 'config/webmatrix.php';
++    if(file_exists($webpi_filename) && $fp = @fopen($webpi_filename, 'r')) {
++        while (!feof($fp)) {
++            $connect_str = fgets($fp);
++            if(preg_match('/mysql/', $connect_str)) {
++                break;
++            }
++        }
++        
++        // MySQLの文字列から分割して接続情報を取得する
++        if(!empty($connect_str)) {
++            // /* mysql://[ユーザー名]:[パスワード]@[ホスト名]/[データベース名];*/
++            // @で分解
++            $split_connect = explode('@', $connect_str);
++
++            // ユーザー名, パスワードを取得
++            $split_userpass_wk = explode('//', $split_connect[0]);
++            $split_userpass    = explode(':', $split_userpass_wk[1]);
++            $default_user      = $split_userpass[0];
++            $default_pass      = $split_userpass[1];
++            
++            // ホスト名, データベース名を取得
++            $split_serverdb_wk = explode(';', $split_connect[1]);
++            $split_serverdb    = explode('/', $split_serverdb_wk[0]);
++            $default_server    = $split_serverdb[0];
++            $default_dbname    = $split_serverdb[1];
++        }
++        fclose($fp);
++    }
++
+     if (defined('DB_SERVER')) {
+         $db_server = DB_SERVER;
+     } else {
+-        $db_server = '127.0.0.1';
++        $db_server = $default_server;
+     }
+ 
+     if (defined('DB_TYPE')) {
+@@ -739,13 +775,19 @@
+     if (defined('DB_NAME')) {
+         $db_name = DB_NAME;
+     } else {
+-        $db_name = 'eccube_db';
++        $db_name = $default_dbname;
+     }
+ 
+     if (defined('DB_USER')) {
+         $db_user = DB_USER;
+     } else {
+-        $db_user = 'eccube_db_user';
++        $db_user = $default_user;
++    }
++
++    if (defined('DB_PASSWORD')) {
++        $db_password = DB_PASSWORD;
++    } else {
++        $db_password = $default_pass;
+     }
+ 
+     $objDBParam->addParam('DBの種類', 'db_type', INT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'), $db_type);
+@@ -753,7 +795,7 @@
+     $objDBParam->addParam('DBポート', 'db_port', INT_LEN, '', array('MAX_LENGTH_CHECK'), $db_port);
+     $objDBParam->addParam('DB名', 'db_name', MTEXT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'), $db_name);
+     $objDBParam->addParam('DBユーザ', 'db_user', MTEXT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'), $db_user);
+-    $objDBParam->addParam('DBパスワード', 'db_password', MTEXT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'));
++    $objDBParam->addParam('DBパスワード', 'db_password', MTEXT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'), $default_pass);
+ 
+     return $objDBParam;
+ }
