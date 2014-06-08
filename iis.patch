@@ -1,14 +1,16 @@
-diff -urN eccube-2.11.0-orig/data/config/webmatrix.php eccube-2.11.0-IIS-patched/data/config/webmatrix.php
---- ec-cube/data/config/webmatrix.php	1970-01-01 09:00:00.000000000 +0900
-+++ ec-cube/data/config/webmatrix.php	2011-03-24 19:34:45.000000000 +0900
+diff --git ec-cube/data/config/webmatrix.php ec-cube/data/config/webmatrix.php
+index . .
+--- ec-cube/data/config/webmatrix.php
++++ ec-cube/data/config/webmatrix.php
 @@ -0,0 +1,4 @@
 +<?php
 +/* WebMatrix Connection String */
 +/* mysql://PlaceHolderForUser:PlaceHolderForPassword@PlaceHolderForServer/PlaceHolderForDb;*/
 +?>
-diff -urN eccube-2.11.0-orig/html/.user.ini eccube-2.11.0-IIS-patched/html/.user.ini
---- ec-cube/html/.user.ini	1970-01-01 09:00:00.000000000 +0900
-+++ ec-cube/html/.user.ini	2011-03-24 19:38:06.000000000 +0900
+diff --git ec-cube/html/.user.ini ec-cube/html/.user.ini
+index . .
+--- ec-cube/html/.user.ini
++++ ec-cube/html/.user.ini
 @@ -0,0 +1,9 @@
 +mbstring.language = Japanese
 +mbstring.encoding_translation = off
@@ -18,7 +20,9 @@ diff -urN eccube-2.11.0-orig/html/.user.ini eccube-2.11.0-IIS-patched/html/.user
 +mbstring.internal_encoding = UTF-8
 +upload_max_filesize = 5M
 +register_globals = off
-+date.timezone = Asia/Tokyo
++date.timezone = Asiec-cube/Tokyo
+diff --git ec-cube/data/class_extends/util_extends/SC_Utils_Ex.php ec-cube/data/class_extends/util_extends/SC_Utils_Ex.php
+index 9d858eea3e5d04ad9ecb1e4c04014ca872e19a7c 100644
 --- ec-cube/data/class_extends/util_extends/SC_Utils_Ex.php
 +++ ec-cube/data/class_extends/util_extends/SC_Utils_Ex.php
 @@ -34,4 +34,21 @@
@@ -43,140 +47,31 @@ diff -urN eccube-2.11.0-orig/html/.user.ini eccube-2.11.0-IIS-patched/html/.user
 +    }
 +
  }
---- ec-cube/html/install/index.php
-+++ ec-cube/html/install/index.php
-@@ -22,6 +22,7 @@
-  */
- // ▼require.php 相当
- // rtrim は PHP バージョン依存対策
-+define('HTML_REALDIR', rtrim(realpath(rtrim(realpath(dirname(__FILE__)), '/\\') . '/../'), '/\\') . '/');
- $GLOBALS['_realdir'] = rtrim(realpath(rtrim(realpath(dirname(__FILE__)), '/\\') . '/../'), '/\\') . '/';
- $GLOBALS['_realdir'] = str_replace('\\', '/', $GLOBALS['_realdir']);
- $GLOBALS['_realdir'] = str_replace('//', '/', $GLOBALS['_realdir']);
-@@ -48,7 +49,6 @@
- 
- $objPage = new StdClass;
- $objPage->arrDB_TYPE = array(
--    'pgsql' => 'PostgreSQL',
-     'mysql' => 'MySQL',
- );
- $objPage->arrDB_PORT = array(
-@@ -684,7 +684,7 @@
-     if (defined('MAIL_BACKEND')) {
-         $mail_backend = MAIL_BACKEND;
-     } else {
--        $mail_backend = 'mail';
-+        $mail_backend = 'smtp';
+diff --git ec-cube/data/class/SC_Initial.php ec-cube/data/class/SC_Initial.php
+index b6139e38dacad56471706fe9754ab226c7966f32 100644
+--- ec-cube/data/class/SC_Initial.php
++++ ec-cube/data/class/SC_Initial.php
+@@ -69,6 +69,7 @@
+     public function requireInitialConfig()
+     {
+         define('CONFIG_REALFILE', realpath(dirname(__FILE__)) . '/../config/config.php');
++        define('DEFINE_REALFILE', realpath(dirname(__FILE__)) . '/../config/define.php');
+         if (file_exists(CONFIG_REALFILE)) {
+             require_once CONFIG_REALFILE;
+         }
+diff --git ec-cube/data/class/db/dbfactory/SC_DB_DBFactory_MYSQL.php ec-cube/data/class/db/dbfactory/SC_DB_DBFactory_MYSQL.php
+index 139cd088b9e021fcd99a477c353f6c3f931bb765 100644
+--- ec-cube/data/class/db/dbfactory/SC_DB_DBFactory_MYSQL.php
++++ ec-cube/data/class/db/dbfactory/SC_DB_DBFactory_MYSQL.php
+@@ -362,5 +362,6 @@
+     {
+         $objQuery->exec('SET SESSION storage_engine = InnoDB');
+         $objQuery->exec("SET SESSION sql_mode = 'ANSI'");
++        $objQuery->exec("SET SESSION time_zone = '+09:00'"); // Asiec-cube/Tokyo
      }
-     if (defined('SMTP_HOST')) {
-         $smtp_host = SMTP_HOST;
-@@ -721,10 +721,47 @@
- // DBパラメーター情報の初期化
- function lfInitDBParam($objDBParam)
- {
-+    // EC-CUBEデフォルト値設定
-+    $default_server = '127.0.0.1';
-+    $default_dbname = 'eccube_db';
-+    $default_user   = 'eccube_db_user';
-+    $default_pass   = '';
-+
-+    // WebMatrixの設定ファイルから接続情報を取得
-+    $webpi_filename = HTML_REALDIR . HTML2DATA_DIR . 'config/webmatrix.php';
-+    if(file_exists($webpi_filename) && $fp = @fopen($webpi_filename, 'r')) {
-+        while (!feof($fp)) {
-+            $connect_str = fgets($fp);
-+            if(preg_match('/mysql/', $connect_str)) {
-+                break;
-+            }
-+        }
-+        
-+        // MySQLの文字列から分割して接続情報を取得する
-+        if(!empty($connect_str)) {
-+            // /* mysql://[ユーザー名]:[パスワード]@[ホスト名]/[データベース名];*/
-+            // @で分解
-+            $split_connect = explode('@', $connect_str);
-+
-+            // ユーザー名, パスワードを取得
-+            $split_userpass_wk = explode('//', $split_connect[0]);
-+            $split_userpass    = explode(':', $split_userpass_wk[1]);
-+            $default_user      = $split_userpass[0];
-+            $default_pass      = $split_userpass[1];
-+            
-+            // ホスト名, データベース名を取得
-+            $split_serverdb_wk = explode(';', $split_connect[1]);
-+            $split_serverdb    = explode('/', $split_serverdb_wk[0]);
-+            $default_server    = $split_serverdb[0];
-+            $default_dbname    = $split_serverdb[1];
-+        }
-+        fclose($fp);
-+    }
-+
-     if (defined('DB_SERVER')) {
-         $db_server = DB_SERVER;
-     } else {
--        $db_server = '127.0.0.1';
-+        $db_server = $default_server;
-     }
- 
-     if (defined('DB_TYPE')) {
-@@ -742,13 +779,19 @@
-     if (defined('DB_NAME')) {
-         $db_name = DB_NAME;
-     } else {
--        $db_name = 'eccube_db';
-+        $db_name = $default_dbname;
-     }
- 
-     if (defined('DB_USER')) {
-         $db_user = DB_USER;
-     } else {
--        $db_user = 'eccube_db_user';
-+        $db_user = $default_user;
-+    }
-+
-+    if (defined('DB_PASSWORD')) {
-+        $db_password = DB_PASSWORD;
-+    } else {
-+        $db_password = $default_pass;
-     }
- 
-     $objDBParam->addParam('DBの種類', 'db_type', INT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'), $db_type);
-@@ -756,7 +799,7 @@
-     $objDBParam->addParam('DBポート', 'db_port', INT_LEN, '', array('MAX_LENGTH_CHECK'), $db_port);
-     $objDBParam->addParam('DB名', 'db_name', MTEXT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'), $db_name);
-     $objDBParam->addParam('DBユーザ', 'db_user', MTEXT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'), $db_user);
--    $objDBParam->addParam('DBパスワード', 'db_password', MTEXT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'));
-+    $objDBParam->addParam('DBパスワード', 'db_password', MTEXT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'), $default_pass);
- 
-     return $objDBParam;
  }
-@@ -1026,17 +1069,6 @@
- 
-     // FIXME 変数出力はエスケープすべき
-     $config_data = "<?php\n"
--                 . "define('ECCUBE_INSTALL', 'ON');\n"
--                 . "define('HTTP_URL', '"              . $normal_url . "');\n"
--                 . "define('HTTPS_URL', '"             . $secure_url . "');\n"
--                 . "define('ROOT_URLPATH', '"          . $url_dir . "');\n"
--                 . "define('DOMAIN_NAME', '"           . $objWebParam->getValue('domain') . "');\n"
--                 . "define('DB_TYPE', '"               . $objDBParam->getValue('db_type') . "');\n"
--                 . "define('DB_USER', '"               . $objDBParam->getValue('db_user') . "');\n"
--                 . "define('DB_PASSWORD', '"           . $objDBParam->getValue('db_password') . "');\n"
--                 . "define('DB_SERVER', '"             . $objDBParam->getValue('db_server') . "');\n"
--                 . "define('DB_NAME', '"               . $objDBParam->getValue('db_name') . "');\n"
--                 . "define('DB_PORT', '"               . $objDBParam->getValue('db_port') . "');\n"
-                  . "define('ADMIN_DIR', '"             . $objWebParam->getValue('admin_dir') . "/');\n"
-                  . "define('ADMIN_FORCE_SSL', "        . $force_ssl . ");\n"
-                  . "define('ADMIN_ALLOW_HOSTS', '"     . serialize($allow_hosts) . "');\n"
-@@ -1048,7 +1080,7 @@
-                  . "define('SMTP_USER', '"             . $objWebParam->getValue('smtp_user') . "');\n"
-                  . "define('SMTP_PASSWORD', '"         . $objWebParam->getValue('smtp_password') . "');\n";
- 
--    if ($fp = fopen(CONFIG_REALFILE, 'w')) {
-+    if ($fp = fopen(DEFINE_REALFILE, 'w')) {
-         fwrite($fp, $config_data);
-         fclose($fp);
-     }
+diff --git ec-cube/data/class/pages/admin/basis/LC_Page_Admin_Basis_ZipInstall.php ec-cube/data/class/pages/admin/basis/LC_Page_Admin_Basis_ZipInstall.php
+index c9df6499f837534a7e46bb838d172b837bf77206 100644
 --- ec-cube/data/class/pages/admin/basis/LC_Page_Admin_Basis_ZipInstall.php
 +++ ec-cube/data/class/pages/admin/basis/LC_Page_Admin_Basis_ZipInstall.php
 @@ -161,10 +161,7 @@
@@ -223,10 +118,10 @@ diff -urN eccube-2.11.0-orig/html/.user.ini eccube-2.11.0-IIS-patched/html/.user
 +                    continue;
 +                }
 +                $stmt->bindParam(1, ++$cntCurrentLine, PDO::PARAM_INT);
-+                $stmt->bindParam(2, $array[2], PDO::PARAM_STR, strlen($array[2]));
-+                $stmt->bindParam(3, $array[6], PDO::PARAM_STR, strlen($array[6]));
-+                $stmt->bindParam(4, $array[7], PDO::PARAM_STR, strlen($array[7]));
-+                $stmt->bindParam(5, $array[8], PDO::PARAM_STR, strlen($array[8]));
++                $stmt->bindParam(2, trim($array[2], '"'), PDO::PARAM_STR, strlen($array[2]));
++                $stmt->bindParam(3, trim($array[6], '"'), PDO::PARAM_STR, strlen($array[6]));
++                $stmt->bindParam(4, trim($array[7], '"'), PDO::PARAM_STR, strlen($array[7]));
++                $stmt->bindParam(5, trim($array[8], '"'), PDO::PARAM_STR, strlen($array[8]));
 +                $stmt->execute();
                  $cntInsert++;
 -            }
@@ -275,6 +170,38 @@ diff -urN eccube-2.11.0-orig/html/.user.ini eccube-2.11.0-IIS-patched/html/.user
      }
  
      public function openZipCsv()
+diff --git ec-cube/data/class/pages/admin/system/LC_Page_Admin_System_Log.php ec-cube/data/class/pages/admin/system/LC_Page_Admin_System_Log.php
+index 96d2a407314c907d46d408a7175ec59282606c4a 100644
+--- ec-cube/data/class/pages/admin/system/LC_Page_Admin_System_Log.php
++++ ec-cube/data/class/pages/admin/system/LC_Page_Admin_System_Log.php
+@@ -109,11 +109,8 @@
+     {
+         $index = 0;
+         $arrLogs = array();
+-        for ($gen = 0 ; $gen <= MAX_LOG_QUANTITY; $gen++) {
+-            $path = $log_path_base;
+-            if ($gen != 0) {
+-                $path .= ".$gen";
+-            }
++        $arrPaths = glob(str_replace('.log', '', $log_path_base) . '*.log*');
++        foreach ($arrPaths as $path) {
+ 
+             // ファイルが存在しない場合、前世代のログへ
+             if (!file_exists($path)) continue;
+@@ -145,6 +142,11 @@
+             }
+         }
+ 
++        $arrDate = array();
++        foreach ($arrLogs as $key => $val) {
++            $arrDate[$key] = $val['date'];
++        }
++        array_multisort($arrDate, SORT_DESC, SORT_STRING, $arrLogs);
+         return $arrLogs;
+     }
+ 
+diff --git ec-cube/data/class/util/GC_Utils.php ec-cube/data/class/util/GC_Utils.php
+index d89663d7ec2e13888b2ce7985d2251fc1cb4deae 100644
 --- ec-cube/data/class/util/GC_Utils.php
 +++ ec-cube/data/class/util/GC_Utils.php
 @@ -189,6 +189,10 @@
@@ -288,146 +215,8 @@ diff -urN eccube-2.11.0-orig/html/.user.ini eccube-2.11.0-IIS-patched/html/.user
          $msg = "$today [{$_SERVER['SCRIPT_NAME']}] $msg from {$_SERVER['REMOTE_ADDR']}\n";
          if ($verbose) {
              if (GC_Utils_Ex::isFrontFunction()) {
-
---- ec-cube/data/class/SC_AdminView.php
-+++ ec-cube/data/class/SC_AdminView.php
-@@ -32,8 +32,8 @@
-     {
-         parent::init();
- 
--        $this->_smarty->template_dir = TEMPLATE_ADMIN_REALDIR;
--        $this->_smarty->compile_dir = COMPILE_ADMIN_REALDIR;
-+        $this->_smarty->template_dir = realpath(TEMPLATE_ADMIN_REALDIR);
-+        $this->_smarty->compile_dir = realpath(COMPILE_ADMIN_REALDIR);
-         $this->assign('TPL_URLPATH_PC', ROOT_URLPATH . USER_DIR . USER_PACKAGE_DIR . TEMPLATE_NAME . '/');
-         $this->assign('TPL_URLPATH_DEFAULT', ROOT_URLPATH . USER_DIR . USER_PACKAGE_DIR . DEFAULT_TEMPLATE_NAME . '/');
-         $this->assign('TPL_URLPATH', ROOT_URLPATH . USER_DIR . USER_PACKAGE_DIR . 'admin/');
-	Modified   /var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//KV8stt_SC_InstallView.php
-diff --git a/data/class/SC_InstallView.php b//var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//KV8stt_SC_InstallView.php
-index c02ee4fee48ea674e4c20d7edf8916dbcf7e645e 100644
---- ec-cube/data/class/SC_InstallView.php
-+++ ec-cube/data/class/SC_InstallView.php
-@@ -27,7 +27,7 @@
-     {
-         parent::__construct();
- 
--        $this->_smarty->template_dir = $template_dir;
--        $this->_smarty->compile_dir = $compile_dir;
-+        $this->_smarty->template_dir = realpath($template_dir);
-+        $this->_smarty->compile_dir = realpath($compile_dir);
-     }
- }
-	Modified   /var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//l6alcC_SC_MobileView.php
-diff --git a/data/class/SC_MobileView.php b//var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//l6alcC_SC_MobileView.php
-index 8e69e52fd0ef3909c68278636c34953b58cf0d00 100644
---- ec-cube/data/class/SC_MobileView.php
-+++ ec-cube/data/class/SC_MobileView.php
-@@ -32,8 +32,8 @@
-     {
-         parent::init();
- 
--        $this->_smarty->template_dir = MOBILE_TEMPLATE_REALDIR;
--        $this->_smarty->compile_dir = MOBILE_COMPILE_REALDIR;
-+        $this->_smarty->template_dir = realpath(MOBILE_TEMPLATE_REALDIR);
-+        $this->_smarty->compile_dir = realpath(MOBILE_COMPILE_REALDIR);
-         $this->assignTemplatePath(DEVICE_TYPE_MOBILE);
-     }
- }
-	Modified   /var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//UUS6tj_SC_SiteView.php
-diff --git a/data/class/SC_SiteView.php b//var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//UUS6tj_SC_SiteView.php
-index e732a9ec1fd68d24e2ed899162af0ce1cb72c183 100644
---- ec-cube/data/class/SC_SiteView.php
-+++ ec-cube/data/class/SC_SiteView.php
-@@ -36,8 +36,8 @@
-     {
-         parent::init();
- 
--        $this->_smarty->template_dir = TEMPLATE_REALDIR;
--        $this->_smarty->compile_dir = COMPILE_REALDIR;
-+        $this->_smarty->template_dir = realpath(TEMPLATE_REALDIR);
-+        $this->_smarty->compile_dir = realpath(COMPILE_REALDIR);
- 
-         $this->assignTemplatePath(DEVICE_TYPE_PC);
-     }
-	Modified   /var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//IKWGLp_SC_SmartphoneView.php
-diff --git a/data/class/SC_SmartphoneView.php b//var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//IKWGLp_SC_SmartphoneView.php
-index 538d4ff87186c2b5dd5dea0f939ecbe195027241 100644
---- ec-cube/data/class/SC_SmartphoneView.php
-+++ ec-cube/data/class/SC_SmartphoneView.php
-@@ -32,8 +32,8 @@
-     {
-         parent::init();
- 
--        $this->_smarty->template_dir = SMARTPHONE_TEMPLATE_REALDIR;
--        $this->_smarty->compile_dir = SMARTPHONE_COMPILE_REALDIR;
-+        $this->_smarty->template_dir = realpath(SMARTPHONE_TEMPLATE_REALDIR);
-+        $this->_smarty->compile_dir = realpath(SMARTPHONE_COMPILE_REALDIR);
-         $this->assignTemplatePath(DEVICE_TYPE_SMARTPHONE);
-     }
- }
-diff --git a/html/admin/require.php b//var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//8MD5e1_require.php
-index 395f93254af63889f303d6a4aef4096e93c8ca79 100644
---- ec-cube/html/admin/require.php
-+++ ec-cube/html/admin/require.php
-@@ -22,7 +22,10 @@
-  */
- 
- // rtrim は PHP バージョン依存対策
--define('HTML_REALDIR', rtrim(realpath(rtrim(realpath(dirname(__FILE__)), '/\\') . '/../'), '/\\') . '/');
-+$GLOBALS['_realdir'] = rtrim(realpath(rtrim(realpath(dirname(__FILE__)), '/\\') . '/../'), '/\\') . '/';
-+$GLOBALS['_realdir'] = str_replace('\\', '/', $GLOBALS['_realdir']);
-+$GLOBALS['_realdir'] = str_replace('//', '/', $GLOBALS['_realdir']);
-+define('HTML_REALDIR', $GLOBALS['_realdir']);
- define('ADMIN_FUNCTION', true);
- 
- require_once HTML_REALDIR . 'define.php';
-	Modified   /var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//H8vceJ_require.php
-diff --git a/html/require.php b//var/folders/0w/tmwgmlh968n5q05dbkr5hf4c0000gn/T//H8vceJ_require.php
-index 72d99c69dca002c89ab01ad8a26ec085387388c5 100644
---- ec-cube/html/require.php
-+++ ec-cube/html/require.php
-@@ -22,7 +22,10 @@
-  */
- 
- // rtrim は PHP バージョン依存対策
--define('HTML_REALDIR', rtrim(realpath(rtrim(realpath(dirname(__FILE__)), '/\\') . '/'), '/\\') . '/');
-+$GLOBALS['_realdir'] = rtrim(realpath(rtrim(realpath(dirname(__FILE__)), '/\\') . '/'), '/\\') . '/';
-+$GLOBALS['_realdir'] = str_replace('\\', '/', $GLOBALS['_realdir']);
-+$GLOBALS['_realdir'] = str_replace('//', '/', $GLOBALS['_realdir']);
-+define('HTML_REALDIR', $GLOBALS['_realdir']);
- 
- if (!defined('ADMIN_FUNCTION') || ADMIN_FUNCTION !== true) {
-     define('FRONT_FUNCTION', true);
---- ec-cube/html/define.php
-+++ ec-cube/html/define.php
-@@ -1,6 +1,6 @@
- <?php
- /** HTMLディレクトリからのDATAディレクトリの相対パス */
--define('HTML2DATA_DIR', '../data/');
-+define('HTML2DATA_DIR', './data/');
- 
- /** data/module 以下の PEAR ライブラリを優先的に使用する */
- set_include_path(realpath(dirname(__FILE__) . '/' . HTML2DATA_DIR . 'module') . PATH_SEPARATOR . get_include_path());
-
---- ec-cube/data/class/SC_Initial.php
-+++ ec-cube/data/class/SC_Initial.php
-@@ -69,6 +69,7 @@
-     public function requireInitialConfig()
-     {
-         define('CONFIG_REALFILE', realpath(dirname(__FILE__)) . '/../config/config.php');
-+        define('DEFINE_REALFILE', realpath(dirname(__FILE__)) . '/../config/define.php');
-         if (file_exists(CONFIG_REALFILE)) {
-             require_once CONFIG_REALFILE;
-         }
---- ec-cube/data/class/db/dbfactory/SC_DB_DBFactory_MYSQL.php
-+++ ec-cube/data/class/db/dbfactory/SC_DB_DBFactory_MYSQL.php
-@@ -362,5 +362,6 @@
-     {
-         $objQuery->exec('SET SESSION storage_engine = InnoDB');
-         $objQuery->exec("SET SESSION sql_mode = 'ANSI'");
-+        $objQuery->exec("SET SESSION time_zone = '+09:00'"); // Asia/Tokyo
-     }
- }
+diff --git ec-cube/data/config/config.php ec-cube/data/config/config.php
+index . .
 --- ec-cube/data/config/config.php
 +++ ec-cube/data/config/config.php
 @@ -0,0 +1,38 @@
@@ -447,6 +236,10 @@ index 72d99c69dca002c89ab01ad8a26ec085387388c5 100644
 +    $https_location = $http_location;
 +}
 +
++define('HTTP_URL', $http_location);
++define('HTTPS_URL', $https_location);
++define('DOMAIN_NAME', '');
++
 +$define_php = $realpath . './define.php';
 +$webmatrix_php = $realpath . './webmatrix.php';
 +if (file_exists($define_php)) {
@@ -457,10 +250,6 @@ index 72d99c69dca002c89ab01ad8a26ec085387388c5 100644
 +        preg_match("|/\\*\\s*mysql://([^:]*):([^@]*)@([^/]*)/([^;]*);\\*/|", $subject, $matches);
 +        list($all, $db_user, $db_password, $db_server, $db_name) = $matches;
 +
-+        define('ECCUBE_INSTALL', 'ON');
-+        define('HTTP_URL', $http_location);
-+        define('HTTPS_URL', $https_location);
-+        define('DOMAIN_NAME', '');
 +        define('DB_TYPE', 'mysql');
 +        define('DB_USER', $db_user);
 +        define('DB_PASSWORD', $db_password);
@@ -469,12 +258,26 @@ index 72d99c69dca002c89ab01ad8a26ec085387388c5 100644
 +        define('DB_PORT', '');
 +    }
 +}
+diff --git ec-cube/html/define.php ec-cube/html/define.php
+index 1e9c3b3f979bcb9c019f9d550e0df7365e3a5c51 100644
+--- ec-cube/html/define.php
++++ ec-cube/html/define.php
+@@ -1,6 +1,6 @@
+ <?php
+ /** HTMLディレクトリからのDATAディレクトリの相対パス */
+-define('HTML2DATA_DIR', '../data/');
++define('HTML2DATA_DIR', './data/');
+ 
+ /** data/module 以下の PEAR ライブラリを優先的に使用する */
+ set_include_path(realpath(dirname(__FILE__) . '/' . HTML2DATA_DIR . 'module') . PATH_SEPARATOR . get_include_path());
+diff --git ec-cube/html/deleteInstaller.php ec-cube/html/deleteInstaller.php
+index . .
 --- ec-cube/html/deleteInstaller.php
 +++ ec-cube/html/deleteInstaller.php
 @@ -0,0 +1,16 @@
 +<?php
 +
-+require_once '../data/config/config.php';
++require_once './data/config/config.php';
 +if (defined('ECCUBE_INSTALL')) {
 +    $installerFile = './install/index.php';
 +    if (file_exists($installerFile)) {
@@ -488,6 +291,139 @@ index 72d99c69dca002c89ab01ad8a26ec085387388c5 100644
 +    $url = $m[1];
 +}
 +header("Location: {$url}");
+\ No newline at end of file
+diff --git ec-cube/html/install/index.php ec-cube/html/install/index.php
+index a0555f9f813cac8f178843e3191e3df6190f5763 100644
+--- ec-cube/html/install/index.php
++++ ec-cube/html/install/index.php
+@@ -48,7 +48,6 @@
+ 
+ $objPage = new StdClass;
+ $objPage->arrDB_TYPE = array(
+-    'pgsql' => 'PostgreSQL',
+     'mysql' => 'MySQL',
+ );
+ $objPage->arrDB_PORT = array(
+@@ -684,7 +683,7 @@
+     if (defined('MAIL_BACKEND')) {
+         $mail_backend = MAIL_BACKEND;
+     } else {
+-        $mail_backend = 'mail';
++        $mail_backend = 'smtp';
+     }
+     if (defined('SMTP_HOST')) {
+         $smtp_host = SMTP_HOST;
+@@ -721,10 +720,47 @@
+ // DBパラメーター情報の初期化
+ function lfInitDBParam($objDBParam)
+ {
++    // EC-CUBEデフォルト値設定
++    $default_server = '127.0.0.1';
++    $default_dbname = 'eccube_db';
++    $default_user   = 'eccube_db_user';
++    $default_pass   = '';
++
++    // WebMatrixの設定ファイルから接続情報を取得
++    $webpi_filename = HTML_REALDIR . HTML2DATA_DIR . 'config/webmatrix.php';
++    if(file_exists($webpi_filename) && $fp = @fopen($webpi_filename, 'r')) {
++        while (!feof($fp)) {
++            $connect_str = fgets($fp);
++            if(preg_match('/mysql/', $connect_str)) {
++                break;
++            }
++        }
++        
++        // MySQLの文字列から分割して接続情報を取得する
++        if(!empty($connect_str)) {
++            // /* mysql://[ユーザー名]:[パスワード]@[ホスト名]/[データベース名];*/
++            // @で分解
++            $split_connect = explode('@', $connect_str);
++
++            // ユーザー名, パスワードを取得
++            $split_userpass_wk = explode('//', $split_connect[0]);
++            $split_userpass    = explode(':', $split_userpass_wk[1]);
++            $default_user      = $split_userpass[0];
++            $default_pass      = $split_userpass[1];
++            
++            // ホスト名, データベース名を取得
++            $split_serverdb_wk = explode(';', $split_connect[1]);
++            $split_serverdb    = explode('/', $split_serverdb_wk[0]);
++            $default_server    = $split_serverdb[0];
++            $default_dbname    = $split_serverdb[1];
++        }
++        fclose($fp);
++    }
++
+     if (defined('DB_SERVER')) {
+         $db_server = DB_SERVER;
+     } else {
+-        $db_server = '127.0.0.1';
++        $db_server = $default_server;
+     }
+ 
+     if (defined('DB_TYPE')) {
+@@ -742,13 +778,19 @@
+     if (defined('DB_NAME')) {
+         $db_name = DB_NAME;
+     } else {
+-        $db_name = 'eccube_db';
++        $db_name = $default_dbname;
+     }
+ 
+     if (defined('DB_USER')) {
+         $db_user = DB_USER;
+     } else {
+-        $db_user = 'eccube_db_user';
++        $db_user = $default_user;
++    }
++
++    if (defined('DB_PASSWORD')) {
++        $db_password = DB_PASSWORD;
++    } else {
++        $db_password = $default_pass;
+     }
+ 
+     $objDBParam->addParam('DBの種類', 'db_type', INT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'), $db_type);
+@@ -756,7 +798,7 @@
+     $objDBParam->addParam('DBポート', 'db_port', INT_LEN, '', array('MAX_LENGTH_CHECK'), $db_port);
+     $objDBParam->addParam('DB名', 'db_name', MTEXT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'), $db_name);
+     $objDBParam->addParam('DBユーザ', 'db_user', MTEXT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'), $db_user);
+-    $objDBParam->addParam('DBパスワード', 'db_password', MTEXT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'));
++    $objDBParam->addParam('DBパスワード', 'db_password', MTEXT_LEN, '', array('EXIST_CHECK', 'MAX_LENGTH_CHECK'), $default_pass);
+ 
+     return $objDBParam;
+ }
+@@ -1027,16 +1069,6 @@
+     // FIXME 変数出力はエスケープすべき
+     $config_data = "<?php\n"
+                  . "define('ECCUBE_INSTALL', 'ON');\n"
+-                 . "define('HTTP_URL', '"              . $normal_url . "');\n"
+-                 . "define('HTTPS_URL', '"             . $secure_url . "');\n"
+-                 . "define('ROOT_URLPATH', '"          . $url_dir . "');\n"
+-                 . "define('DOMAIN_NAME', '"           . $objWebParam->getValue('domain') . "');\n"
+-                 . "define('DB_TYPE', '"               . $objDBParam->getValue('db_type') . "');\n"
+-                 . "define('DB_USER', '"               . $objDBParam->getValue('db_user') . "');\n"
+-                 . "define('DB_PASSWORD', '"           . $objDBParam->getValue('db_password') . "');\n"
+-                 . "define('DB_SERVER', '"             . $objDBParam->getValue('db_server') . "');\n"
+-                 . "define('DB_NAME', '"               . $objDBParam->getValue('db_name') . "');\n"
+-                 . "define('DB_PORT', '"               . $objDBParam->getValue('db_port') . "');\n"
+                  . "define('ADMIN_DIR', '"             . $objWebParam->getValue('admin_dir') . "/');\n"
+                  . "define('ADMIN_FORCE_SSL', "        . $force_ssl . ");\n"
+                  . "define('ADMIN_ALLOW_HOSTS', '"     . serialize($allow_hosts) . "');\n"
+@@ -1048,7 +1080,10 @@
+                  . "define('SMTP_USER', '"             . $objWebParam->getValue('smtp_user') . "');\n"
+                  . "define('SMTP_PASSWORD', '"         . $objWebParam->getValue('smtp_password') . "');\n";
+ 
+-    if ($fp = fopen(CONFIG_REALFILE, 'w')) {
++    if (!defined('DEFINE_REALFILE')) {
++        define('DEFINE_REALFILE', HTML_REALDIR . HTML2DATA_DIR . 'config/define.php');
++    }
++    if ($fp = fopen(DEFINE_REALFILE, 'w')) {
+         fwrite($fp, $config_data);
+         fclose($fp);
+     }
+diff --git ec-cube/html/install/templates/step1.tpl ec-cube/html/install/templates/step1.tpl
+index 71a542a336823b9da151aada051bbcd6b2fa8766 100644
 --- ec-cube/html/install/templates/step1.tpl
 +++ ec-cube/html/install/templates/step1.tpl
 @@ -21,7 +21,7 @@
