@@ -426,15 +426,25 @@ diff --git ec-cube/html/install/templates/step1.tpl ec-cube/html/install/templat
 index 71a542a336823b9da151aada051bbcd6b2fa8766 100644
 --- ec-cube/html/install/templates/step1.tpl
 +++ ec-cube/html/install/templates/step1.tpl
-@@ -21,7 +21,7 @@
+@@ -21,12 +21,12 @@
   *}-->
  <script type="text/javascript">
  $(function() {
 -    $('.option').hide();
+-    if ($('input[name=mail_backend]').val() == 'smtp') {
+-        $('.smtp').attr('disabled', false);
+-    } else {
+-        $('.smtp').attr('disabled', true);
+-    }
 +    // $('.option').hide();
-     if ($('input[name=mail_backend]').val() == 'smtp') {
-         $('.smtp').attr('disabled', false);
-     } else {
++    // if ($('input[name=mail_backend]').val() == 'smtp') {
++    //     $('.smtp').attr('disabled', false);
++    // } else {
++    //     $('.smtp').attr('disabled', true);
++    // }
+     $('#options').click(function() {
+         $('.option').slideToggle();
+     });
 @@ -144,7 +144,7 @@
                      <td>
                      <!--{assign var=key value="normal_url"}-->
