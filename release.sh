@@ -79,7 +79,7 @@ cat << EOF > $IIS_PARAMS
   </parameter>
   <parameter name="SetAclParameter1"
              description="Sets the ACL on the html directory"
-             defaultValue="{Application Path}/html"
+             defaultValue="{Application Path}"
              tags="Hidden">
     <parameterEntry type="ProviderPath"
                     scope="setAcl"
